@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "worker.hpp"
+#include "barrier.hpp"
 
 class PSO: public Worker {
 private:
@@ -18,6 +19,8 @@ public:
 	size_t numofdims;
 	size_t numofsamples;
 	size_t numofsamples_2;
+
+	bool helper;
 
 	std::vector<std::vector<double> > V;
 	std::vector<std::vector<double> > X;
@@ -42,6 +45,13 @@ public:
 
 	std::vector<std::vector<size_t>> to_skip;
 
+	double total_e;
+
+	Barrier *barrier;
+
+	static std::vector<size_t> ids;	// to be shuffled
+	static std::vector<std::vector<double>> helper_founds;
+
 	double init_param(size_t j);
 
 	void init_max_velocities();
@@ -58,7 +68,7 @@ public:
 			std::vector<std::vector<double> > results, double t,
 			size_t id = 0);
 
-	void fitnessfunc();
+	void fitnessfunc(bool first = false);
 
 	void calcgbest(bool first = false);
 
@@ -78,7 +88,7 @@ public:
 			std::vector<double> Xmax,
 			std::vector<double> *time,
 			std::vector<double> *A, size_t numofsamples,
-			size_t id, double c1 = 2, double c2 = 2);
+			size_t id, Barrier *barrier = nullptr, bool helper = false, double c1 = 2, double c2 = 2);
 
 	void run();
 

@@ -5,7 +5,6 @@
 #include "scheduler.hpp"
 
 class Worker: public BasicWorker {
-	//size_t id;
 	size_t counter = 0;
 
 protected:

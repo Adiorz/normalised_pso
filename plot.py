@@ -13,11 +13,17 @@ lines = []
 def main():
 
     file_name = sys.argv[1]
+    print(file_name)
     save_file_name = sys.argv[2]
+    print(save_file_name)
     num_modes = 0
     num_dims = 0
     with open(file_name, '+r') as file:
         num_modes, num_dims = next(file).split()
+        for i in range(int(num_modes)):
+            amp, freq, damp, l_idx, r_idx = next(file).split()
+            lines.append(int(l_idx))
+            lines.append(int(r_idx))
     num_modes = int(num_modes)
     num_dims = int(num_dims)
 
@@ -30,16 +36,16 @@ def main():
 
     fig = plt.figure()
 
+    for line in lines:
+        plt.axvline(x=line, ymin=0.0, ymax = 1.0, linewidth=1, color='k')
+
     ax = fig.add_subplot(111)
     #ax.plot(data['f'], data['real'], color='r', label='real data')
-    #ax.plot(data['f'], data['found'], color='b', label='found data')
+    ax.plot(data['f'], data['found'], color='b', label='found data')
     for i in range(num_modes):
         ax.plot(data['f'], data['found_%s' % str(i+1)], label='found data %s' % str(i+1))
     ax.plot(data['f'], data['gauss'], label='gauss')
     legend = ax.legend(loc='upper right', shadow=True)
-
-    for line in lines:
-        plt.axvline(x=line, ymin=0.0, ymax = 1.0, linewidth=1, color='k')
 
     fig.savefig(save_file_name, bbox_inches='tight')
     fig.savefig(save_file_name)

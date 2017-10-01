@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cmath>
 #include <string>
+#include <set>
 
 #ifndef ADDITIONAL_H_
 #define ADDITIONAL_H_
@@ -41,8 +42,13 @@ bool should_skip(size_t f, std::vector<std::pair<size_t, size_t>> &to_skip);
 
 std::string doubleToText(const double & d);
 
+std::vector<size_t> get_left_middle_right(std::vector<double>& A_gauss, size_t numofsamples_2, size_t f);
+
+double get_signal_energy(std::vector<double> signal, size_t start = 1, size_t end = 0);
+
 void prepare_log_file_for_visualisation(std::string log_file_name,
 		size_t num_workers, std::vector< std::vector<double> > factors,
+		std::set<std::pair<size_t, size_t> > freq_ranges,
 		std::vector<double> &time, std::vector<double> &amp,
 		std::vector<double> &amp_gauss, size_t numofsamples);
 
