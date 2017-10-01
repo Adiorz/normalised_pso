@@ -302,10 +302,6 @@ void PSO::run() {
 			for (size_t i: worst_indices) {
 				reposition_particle(i);
 			}
-//			addparticle();
-//			addparticle();
-//			addparticle();
-//			addparticle();
 		}
 
 		scheduler.send_data_to_worker(this, std::vector<double>(getgbest()));
