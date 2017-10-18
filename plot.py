@@ -4,11 +4,11 @@ import matplotlib as mpl
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cbook as cbook
+import matplotlib.patches as patches
 from matplotlib.backends.backend_pdf import PdfPages
 import sys
 
 lines = []
-#lines = [288, 332, 197, 262, 92, 120]
 
 def main():
 
@@ -18,12 +18,11 @@ def main():
     print(save_file_name)
     num_modes = 0
     num_dims = 0
-    with open(file_name, '+r') as file:
+    with open(file_name, 'r') as file:
         num_modes, num_dims = next(file).split()
         for i in range(int(num_modes)):
             amp, freq, damp, l_idx, r_idx = next(file).split()
-            lines.append(int(l_idx))
-            lines.append(int(r_idx))
+            lines.append((int(l_idx), int(r_idx)))
     num_modes = int(num_modes)
     num_dims = int(num_dims)
 
@@ -36,11 +35,9 @@ def main():
 
     fig = plt.figure()
 
-    for line in lines:
-        plt.axvline(x=line, ymin=0.0, ymax = 1.0, linewidth=1, color='k')
-
     ax = fig.add_subplot(111)
-    #ax.plot(data['f'], data['real'], color='r', label='real data')
+    for rect in lines:
+        ax.add_patch(patches.Rectangle((rect[0], 0.0), rect[1]-rect[0], 0.01, alpha=0.1))
     ax.plot(data['f'], data['found'], color='b', label='found data')
     for i in range(num_modes):
         ax.plot(data['f'], data['found_%s' % str(i+1)], label='found data %s' % str(i+1))

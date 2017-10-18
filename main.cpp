@@ -69,29 +69,48 @@ int main(int argc, char *argv[]) {
 
 //    std::vector<std::vector<double>> sim {{10., 200, 0., 0.005},{3, 350, 0., 0.01},{5, 750, 0., 0.02},{1, 700, 0., 0.01}};
 
-    std::vector<std::vector<double>> sim {
+    std::vector<std::vector<double>> simulated_params {
 		{0.1, 450, 0.015},
-		{0.08, 150, 0.009},
-		{0.05, 250, 0.006},
+		{0.08, 150, 0.02},
+		{0.05, 250, 0.009},
 		{0.15, 550, 0.03},
 		{0.5, 270, 0.03}
 	};
+//    for (auto &x: simulated_params)
+//    	x[0] *= 20.0;
 
-    for (size_t i = 0; i < sim.size(); ++i)
-    	for (size_t j = 0; j < num_dims; ++j)
-    		std::cout << std::fixed << sim[i][j] << std::endl;
     std::vector<double> simulated(numofsamples, 0);
     for (size_t j = 0; j < numofsamples; ++j) {
 		double t = time[j];
-		simulated[j] += PSO::calc_response(sim, t);
+		simulated[j] += PSO::calc_response(simulated_params, t);
 	}
 
     std::vector<double> sim_A;
 	std::vector<double> sim_P;
-	fft(simulated, sim_A, sim_P);
+	if (channel < 2) {
+		std::cout << "Used simulated signal:" << std::endl;
+		for (std::vector<double> mode: simulated_params) {
+			for (double x: mode)
+				std::cout << x << "\t";
+			std::cout << std::endl;
+		}
 
-	amp = std::vector<double>(sim_A);
-	amp_gauss = std::vector<double>(gaussian_filter(amp, 2));
+		if (channel == 1) {
+			std::cout << "Add Gaussian noise to the simulated signal" << std::endl;
+			// TODO: determine noise based on input (simulated) signal, SNR?
+			// check: https://www.dsprelated.com/showcode/263.php
+			const double mean = 0.0;
+			const double stddev = 0.005;
+			std::default_random_engine generator;
+			std::normal_distribution<double> dist(mean, stddev);
+			for (auto& x: simulated)
+				x = x + dist(generator);
+		}
+		fft(simulated, sim_A, sim_P);
+
+		amp = std::vector<double>(sim_A);
+		amp_gauss = std::vector<double>(gaussian_filter(amp, 2));
+	}
 	/////////////////////// simulated signal - end
 
 	double total_e = get_signal_energy(amp);
@@ -113,9 +132,6 @@ int main(int argc, char *argv[]) {
 			Worker::data[i][j] = std::vector<double>(num_dims);
 		}
 	}
-
-	for (size_t i = 0; i < W; ++i)
-		std::cout << Worker::data[i].size() << std::endl;
 
     std::vector<PSO*> workers = std::vector<PSO*>();
 	std::vector<std::thread> t_workers(W);
@@ -176,7 +192,6 @@ int main(int argc, char *argv[]) {
 
 		std::cout << "helper " << m << ": <" << freq[f_l] << ", " << f << ", " << freq[f_r] << ">" << std::endl;
 
-		size_t f_range = f_r - f_l;
 		std::vector<double>::const_iterator first = amp.begin() + f_l;
 		std::vector<double>::const_iterator last = amp.begin() + f_r;
 
@@ -205,12 +220,9 @@ int main(int argc, char *argv[]) {
 		std::cout << "<" << range.first << ", " << range.second << ">" << std::endl;
 
 	// Prepare data log for visualisation
-//	prepare_log_file_for_visualisation(log_file_name+"_main", W, Worker::data[W - 1], found_ranges, time, amp, amp_gauss, numofsamples);
 	prepare_log_file_for_visualisation(log_file_name+"_main", founds_filtered.size(), founds_filtered, myset, time, amp, amp_gauss, numofsamples);
 	for (auto w: workers)
 		delete w;
-
-	return 0;
 
 	double used = 0.0;
 	for (std::pair<size_t, size_t> range: myset) {
@@ -224,12 +236,15 @@ int main(int argc, char *argv[]) {
 	size_t H = founds_filtered.size();
 	Worker::scheduler = Scheduler(H);
 	Worker::num_workers = H;
-	Worker::data = std::vector<std::vector<std::vector<double> > >(Worker::data.begin(), Worker::data.begin()+H);
-	Barrier barrier(H);
-	PSO::ids = std::vector<size_t> (H);
-	for (size_t i = 0; i < H; ++i)
-		PSO::ids[i] = i;
-//	PSO::helper_founds = std::vector<std::vector<double>>(H);
+
+	// copy data that is associated to specified filtered ranges from main workers to helpers
+	// ommit founds that have been discarded in founds_filtered
+	Worker::data = std::vector<std::vector<std::vector<double> > >();
+	for (size_t m = 0; m < founds_filtered.size(); ++m) {
+		Worker::data.push_back(std::vector<std::vector<double> >());
+		for (size_t k = 0; k < m+1; ++k)
+			Worker::data[m].push_back(founds_filtered[k]);
+	}
 
 	std::cout << "Number of helpers: " << H << std::endl;
 
@@ -239,7 +254,7 @@ int main(int argc, char *argv[]) {
 	for (size_t i = 0; i < H; ++i)
 		helpers.push_back(
 				new PSO(P, num_dims, xmin_h[i], xmax_h[i], &time, &amp,
-						numofsamples, i, &barrier, true));
+						numofsamples, i, nullptr, true));
 
 	for (size_t i = 0; i < H; ++i)
 		t_helpers[i] = std::thread(&PSO::run, std::ref(*helpers[i]));
@@ -247,9 +262,6 @@ int main(int argc, char *argv[]) {
 	for (size_t i = 0; i < H; ++i)
 		t_helpers[i].join();
 
-//	PSO pso(2*P, num_dims, xmin_h[0], xmax_h[0], &time, &amp,
-//							numofsamples, 0, true);
-//	pso.run();
 	std::vector<std::vector<double> > helper_founds;
 	for (auto h: helpers) {
 		helper_founds.push_back(h->getgbest());
@@ -259,10 +271,7 @@ int main(int argc, char *argv[]) {
 		std::cout << std::endl;
 	}
 
-//	prepare_log_file_for_visualisation(log_file_name, W, std::vector<std::vector<double> > {{pso.getgbest()[0] , pso.getgbest()[1], pso.getgbest()[2]}}, time, amp, amp_gauss, numofsamples);
 	prepare_log_file_for_visualisation(log_file_name, H, Worker::data[H - 1], myset, time, amp, amp_gauss, numofsamples);
-//	for (auto w: workers)
-//		delete w;
 	for (auto h: helpers)
 		delete h;
 	return 0;
